@@ -1,0 +1,12 @@
+export { userModel } from "./user.js";
+export { objectModel } from "./object.js";
+export { objectAdressModel } from "./objectAdress.js";
+export { tenantModel } from "./tenant.js";
+export { tenantUserModel } from "./tenantUser.js";
+export { damageModel } from "./damage.js";
+export { chatModel } from "./chat.js";
+export { chatUserModel } from "./chatUser.js";
+export { chatMessageModel } from "./chatMessage.js";
+export { channelModel } from "./channel.js";
+export { channelUserModel } from "./channelUser.js";
+export { channelMessageModel } from "./channelMessage.js";
