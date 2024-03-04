@@ -213,7 +213,7 @@ export const deleteObjectByIdController = async (req, res) => {
         }
 
         const adresses = await getDataByValue(objectAdressModel, { [objectId]: objectId });
-        const deletionPromises = adresses.map(address => deleteAddressById(address._id));
+        const deletionPromises = adresses.response.map(address => deleteAddressById(address._id));
         await Promise.all(deletionPromises);
 
         await deleteDataById(objectModel, objectId);
