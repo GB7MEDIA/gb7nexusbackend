@@ -7,9 +7,8 @@ export {
 } from "./sms.js";
 
 export {
-    createToken,
     verifyTokenMiddleware
-} from "./token.js";
+} from "./verifyToken.js";
 
 export {
     validateLogin,
@@ -69,7 +68,14 @@ export {
     validateEditChannelById,
     validateEditChannelMessageByMessageId,
     validateDeleteChannelById,
-    validateDeleteChannelMessageByMessageId
+    validateDeleteChannelMessageByMessageId,
+    validateGetMarketPlaceProducts,
+    validateGetMarketPlaceProductById,
+    validateCreateMarketPlaceProduct,
+    validateEditMarketPlaceProductById,
+    validateDeleteMarketPlaceProductById
 } from "./validateIndex.js";
 
-export { uploadMiddleware } from "./upload.js";
+export {
+    uploadMiddleware
+} from "./upload.js";

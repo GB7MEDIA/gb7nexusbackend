@@ -1,8 +1,32 @@
-import { userModel, tenantModel, tenantUserModel } from "../models/index.js";
-import { getData, getDataById, getDataByValue, createData, deleteDataById } from "./helper.js";
-import { sendMail } from  "../middlewares/index.js";
-import { generateCode, hashPassword, notEmpty } from "../utils/index.js";
-import { isUser, isAdmin } from "./auth.js";
+import {
+    userModel,
+    tenantModel,
+    tenantUserModel
+} from "../models/index.js";
+
+import {
+    getData,
+    getDataById,
+    getDataByValue,
+    createData,
+    editDataById,
+    deleteDataById
+} from "./helper.js";
+
+import {
+    sendMail
+} from  "../middlewares/index.js";
+
+import {
+    generateCode,
+    hashPassword,
+    notEmpty
+} from "../utils/index.js";
+
+import {
+    isUser,
+    isAdmin
+} from "./auth.js";
 
 export const getAllUsersController = async (req, res) => {
     try {
@@ -66,8 +90,8 @@ export const createUserController = async (req, res) => {
         const { name, email, phonenumber, role = "user", tenantId = null, password } = req.body;
 
 
-        const userData = await getDataByValue(userModel, {['email']: email});
-        if (userData.response.length > 0) {
+        const userData = await getDataByValue(userModel, { ['email']: email });
+        if (userData.response) {
             return res.status(404).json({ error: "A user with this email already exists!" });
         }
 
@@ -88,7 +112,6 @@ export const createUserController = async (req, res) => {
         const createdUser = await createData(userModel, newUser);
 
         if (notEmpty(tenantId)) {
-            console.log(tenantId);
             const tenant = await getDataById(tenantModel, tenantId);
             if (!tenant.response) {
                 await deleteDataById(userModel, createdUser.response._id);
@@ -129,25 +152,27 @@ export const editUserByIdController = async (req, res) => {
             return res.status(404).json({ error: "The user id you are logged in with does not exist!" });
         }
 
-        const { name, email, phonenumber, twoFactorAuthType, role = 'user',} = req.body;
+        const { name, email, phonenumber, twoFactorAuthType, role = 'user' } = req.body;
 
         const user = await getDataById(userModel, userId);
         if (!user.response) {
             return res.status(404).json({ error: "The user does not exist!" });
         }
 
-        user.response.name = name;
-        user.response.email = email;
-        user.response.phonenumber = phonenumber;
-        if (userId !== currentUserId) {
+        let roleChange = role;
+
+        if (userId !== currentUserId || currentUserIsAdmin) {
             if (user.response.role === "admin") {
-                user.response.role = "admin";
+                roleChange = "admin";
             } else {
-                user.response.role = role;
+                roleChange = role;
             }
         }
-        user.response.tfaSetting = twoFactorAuthType;
-        await user.response.save();
+
+        const editedUser = await editDataById(userId, { name, email, phonenumber, role: roleChange, tfaSetting: twoFactorAuthType });
+        if (!editedUser) {
+            return;
+        }
 
         return res.status(200).json({ message: "Successfully changed all data!" });
     } catch (error) { 

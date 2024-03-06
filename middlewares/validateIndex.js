@@ -76,3 +76,11 @@ export {
     validateDeleteChannelById,
     validateDeleteChannelMessageByMessageId
 } from "./validateChannel.js";
+
+export {
+    validateGetMarketPlaceProducts,
+    validateGetMarketPlaceProductById,
+    validateCreateMarketPlaceProduct,
+    validateEditMarketPlaceProductById,
+    validateDeleteMarketPlaceProductById
+} from "./validateMarketPlace.js"

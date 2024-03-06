@@ -1,7 +1,24 @@
-import { objectModel, objectAdressModel } from "../models/index.js";
-import { getData, getDataById, getDataByValue, createData, deleteDataById } from "./helper.js";
-import { notEmpty } from "../utils/index.js";
-import { isUser, isAdmin } from "./auth.js";
+import {
+    objectModel,
+    objectAdressModel
+} from "../models/index.js";
+
+import {
+    getData,
+    getDataById,
+    createData,
+    editDataById,
+    deleteDataById
+} from "./helper.js";
+
+import {
+    notEmpty
+} from "../utils/index.js";
+
+import {
+    isUser,
+    isAdmin
+} from "./auth.js";
 
 export const getAllObjectsController = async (req, res) => {
     try {
@@ -56,8 +73,8 @@ export const getObjectAdressesByObjectIdController = async (req, res) => {
 
         const { objectId } = req.params;
 
-        const adresses = await getDataByValue(objectAdressModel, { ['objectId']: objectId });
-        if (adresses?.response?.length === 0) {
+        const adresses = await getData(objectAdressModel, { ['objectId']: objectId });
+        if (adresses.response.length === 0) {
             return res.status(404).json({ error: "There were no adresess found!" });
         }
 
@@ -154,8 +171,10 @@ export const editObjectByIdController = async (req, res) => {
             return  res.status(404).json({ error: "The object does not exist!" });
         }
 
-        object.response.objectname = objectname;
-        await object.response.save();
+        const editedObject = await editDataById(objectId, { objectname });
+        if (!editedObject) {
+            return;
+        }
 
         return res.status(200).json({ message: "Successffully edited object!", data: { objectId } });
     } catch (error) { 
@@ -181,9 +200,10 @@ export const editObjectAdressByIdController = async (req, res) => {
             return res.status(404).json({ error: "The adress does not exist!" });
         }
 
-        adressData.response.adress = adress;
-        adressData.response.floors = floors;
-        await adressData.response.save();
+        const editedObjectAdress = await editDataById(adressId, { adress, floors });
+        if (!editedObjectAdress) {
+            return;
+        }
 
         return res.status(200).json({ message: "Successfully edited adress!", data: { adressData } });
     } catch (error) { 
@@ -212,8 +232,8 @@ export const deleteObjectByIdController = async (req, res) => {
             return  res.status(404).json({ error: "The object does not exist!" });
         }
 
-        const adresses = await getDataByValue(objectAdressModel, { [objectId]: objectId });
-        const deletionPromises = adresses.response.map(address => deleteAddressById(address._id));
+        const adresses = await getData(objectAdressModel, { [objectId]: objectId });
+        const deletionPromises = adresses.response.map(async (address) => await deleteAddressById(address._id));
         await Promise.all(deletionPromises);
 
         await deleteDataById(objectModel, objectId);

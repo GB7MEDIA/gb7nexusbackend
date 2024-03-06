@@ -1,7 +1,28 @@
-import { userModel, channelModel, channelUserModel, channelMessageModel } from "../models/index.js";
-import { getData, getDataById, getDataByValue, createData, deleteDataById } from "./helper.js";
-import { notEmpty } from "../utils/index.js";
-import { isUser, isAdmin } from "./auth.js";
+import {
+    userModel,
+    channelModel,
+    channelUserModel,
+    channelMessageModel
+} from "../models/index.js";
+
+import {
+    getData,
+    getDataById,
+    getDataByValue,
+    createData,
+    editDataById,
+    deleteDataById,
+    deleteDataByValue
+} from "./helper.js";
+
+import {
+    notEmpty
+} from "../utils/index.js";
+
+import {
+    isUser,
+    isAdmin
+} from "./auth.js";
 
 export const getAllChannelsController = async (req, res) => {
     try {
@@ -37,7 +58,7 @@ export const getAllChannelsByUserIdController = async (req, res) => {
 
         const { userId } = req.params;
 
-        const channelIdsResult = await getDataByValue(channelUserModel, { ['userId']: userId });
+        const channelIdsResult = await getData(channelUserModel, { ['userId']: userId });
         if (channelIdsResult.response.length === 0) {
             return res.status(404).json({ error: "There were no channel ids found for this user!" });
         }
@@ -91,7 +112,7 @@ export const getChannelMessagesByChannelIdController = async (req, res) => {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
-        const messages = await getDataByValue( channelMessageModel, { ['channelId']: channelId } );
+        const messages = await getData( channelMessageModel, { ['channelId']: channelId } );
         if (messages.response.length === 0) {
             return res.status(404).json({ error: "There are no messages for this channel id!" });
         }
@@ -137,8 +158,8 @@ export const getChannelUsersByChannelIdController = async (req, res) => {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
-        const usersIds = await getDataByValue( channelUserModel, { ['channelId']: channelId } );
-        if (usersIds.response.length === 0) {
+        const usersIds = await getData( channelUserModel, { ['channelId']: channelId } );
+        if (usersIds.response === 0) {
             return res.status(404).json({ error: "There are no users for this channel id!" });
         }
 
@@ -171,7 +192,7 @@ export const createChannelController = async (req, res) => {
         const { channelname, channelusers, channelrights } = req.body;
 
         const channel = await getDataByValue( channelModel, { ['channelname']: channelname } );
-        if (channel.response.length > 0) {
+        if (channel.response) {
             return res.status(404).json({ error: "A channel with this name already exists!" });
         }
 
@@ -268,12 +289,9 @@ export const editChannelByIdController = async (req, res) => {
 
         const { channelname, channelusers, channelrights } = req.body;
 
-        channel.response.channelname = channelname;
-        channel.response.channelrights = channelrights;
-        const editedChannel = await channel.response.save();
-
+        const editedChannel = await editDataById(channelModel, channelId, { channelname: channelname, channelrights: channelrights });
         if (editedChannel) {
-            const existingUsers = await getDataByValue(channelUserModel, {['channelId']: channelId});
+            const existingUsers = await getDataByValue(channelUserModel, { ['channelId']: channelId });
             const existingUserIds = existingUsers.response.map(user => user.userId);
 
             const channelUserIds = channelusers.map(channelUser => channelUser[0]);
@@ -281,17 +299,16 @@ export const editChannelByIdController = async (req, res) => {
             const usersToAdd = channelusers.filter(channelUser => !existingUserIds.includes(channelUser[0]));
 
             const removePromises = usersToRemove.map(async user => {
-                const toDeletedId = await getDataByValue(channelUserModel, {['userId']: user.toString()});
-                await deleteDataById(channelUserModel, toDeletedId.response[0]._id.toString());
+                await deleteDataByValue(channelUserModel, {['userId']: user.toString(), ['channelId']: channelId});
             });
 
             const addPromises = usersToAdd.map(async user => {
                 const existingUser = await getDataById(userModel, user[0]);
               
                 if (existingUser.response) {
-                  const existingInChannel = await getDataByValue(channelUserModel, { userId: user[0], channelId: channelId });
+                  const existingInChannel = await getDataByValue(channelUserModel, { ['userId']: user[0], ['channelId']: channelId });
               
-                  if (!existingInChannel.response[0]) {
+                  if (!existingInChannel.response) {
                     let newChannelUser = {
                       channelId,
                       userId: user[0],
@@ -338,10 +355,10 @@ export const editChannelMessageByIdController = async (req, res) => {
         
         const { title, text } = req.body;
 
-        message.response.title = title;
-        message.response.text = text;
-
-        await message.response.save();
+        const editChannelMessage = await editDataById(messageId, { title, text });
+        if (!editChannelMessage) {
+            return;
+        }
 
         return res.status(200).json({ message: "Successfully edited message!" });
     } catch (error) { 
@@ -373,12 +390,12 @@ export const deleteChannelByIdController = async (req, res) => {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
-        const channelUsers = await getDataByValue(channelUserModel, {['channelId']: channelId});
+        const channelUsers = await getData(channelUserModel, { ['channelId']: channelId });
         await Promise.all(channelUsers.response.map(async (user) => {
             await deleteDataById(channelUserModel, user._id);
         }));
 
-        const channelMessages = await getDataByValue(channelMessageModel, {['channelId']: channelId});
+        const channelMessages = await getData(channelMessageModel, { ['channelId']: channelId });
         await Promise.all(channelMessages.response.map(async (message) => {
             await deleteDataById(channelMessageModel, message._id);
         }));
@@ -428,11 +445,11 @@ const isChannelAdmin = async (userId) => {
         }
 
         const channelUser = await getDataByValue(channelUserModel, { ['userId']: userId });
-        if (!channelUser.response[0]) {
+        if (!channelUser.response) {
             return false;
         }
 
-        if (channelUser.response[0].isAdmin === true) {
+        if (channelUser.response.isAdmin === true) {
             return true;
         }
 

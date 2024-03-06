@@ -9,6 +9,7 @@ import { tenantRoutes } from "./tenant.js";
 import { damageRoutes } from "./damage.js";
 import { chatRoutes } from "./chat.js";
 import { channelRoutes } from "./channel.js";
+import { marketPlaceRoutes } from "./marketPlace.js"
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use('/tenants', verifyTokenMiddleware, tenantRoutes);
 router.use('/damages', verifyTokenMiddleware, damageRoutes);
 router.use('/chats', verifyTokenMiddleware, chatRoutes);
 router.use('/channels', verifyTokenMiddleware, channelRoutes);
+router.use('/products', verifyTokenMiddleware, marketPlaceRoutes);
 
 export const AllRoutes = router;

@@ -76,3 +76,11 @@ export {
     deleteChannelByIdController,
     deleteChannelMessageByIdController
 } from "./channel.js";
+
+export {
+    getMarketPlaceProductsController,
+    getMarketPlaceProductByIdController,
+    createMarketPlaceProductController,
+    editMarketPlaceProductByIdController,
+    deleteMarketPlaceProductByIdController
+} from "./marketPlace.js";

@@ -10,3 +10,4 @@ export { chatMessageModel } from "./chatMessage.js";
 export { channelModel } from "./channel.js";
 export { channelUserModel } from "./channelUser.js";
 export { channelMessageModel } from "./channelMessage.js";
+export { marketPlaceModel } from "./marketPlace.js";

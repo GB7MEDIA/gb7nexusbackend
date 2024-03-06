@@ -1,7 +1,26 @@
-import { objectModel, tenantModel, tenantUserModel, userModel } from "../models/index.js";
-import { getData, getDataById, getDataByValue, createData, deleteDataById } from "./helper.js";
-import { notEmpty } from "../utils/index.js";
-import { isUser, isAdmin } from "./auth.js";
+import {
+    objectModel,
+    tenantModel,
+    tenantUserModel,
+    userModel
+} from "../models/index.js";
+
+import {
+    getData,
+    getDataById,
+    createData,
+    editDataById,
+    deleteDataById
+} from "./helper.js";
+
+import {
+    notEmpty
+} from "../utils/index.js";
+
+import {
+    isUser,
+    isAdmin
+} from "./auth.js";
 
 export const getAllTenantsController = async (req, res) => {
     try {
@@ -64,8 +83,8 @@ export const getTenantUsersByTenantIdController = async (req, res) => {
 
         const { tenantId } = req.params;
 
-        const usersIds = await getDataByValue(tenantUserModel, { ["tenantId"]: tenantId });
-        if (usersIds.response === 0) {
+        const usersIds = await getData(tenantUserModel, { ["tenantId"]: tenantId });
+        if (usersIds.response.length === 0) {
             return res.status(404).json({ error: "There are no existing users for this tenant." });
         }
         
@@ -161,9 +180,10 @@ export const editTenantByIdController = async (req, res) => {
             return res.status(404).json({ error: "There was no tenant found!" });
         }
 
-        tenant.response.companyname = companyname;
-        tenant.response.objectId = objectId;
-        await tenant.response.save();
+        const editedTenant = await editDataById(tenantId, { companyname, objectId });
+        if (!editedTenant) {
+            return;
+        }
 
         return res.status(200).json({ message: "Successfully edited tenant!" });
     } catch (error) { 

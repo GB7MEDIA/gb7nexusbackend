@@ -1,59 +1,62 @@
-export const getData = async (Model, queryObject = {}, projection = '') => {
+export const getData = async (model, queryObject = {}, projection = '') => {
     try {
-        const response = await Model.find(queryObject, projection);
-        return { response, error: null };
+        const response = await model.find(queryObject, projection).lean();
+        return response;
     } catch (error) {
-        console.error(error);
-        return { response: null, error };
+        throw error;
     }
 }
 
-export const getDataById = async (Model, id, projection = '') => {
+export const getDataByValue = async (model, queryObject = {}, projection = '') => {
     try {
-        const response = await Model.findById(id, projection);
-        return { response, error: null };
+        const response = await model.findOne(queryObject, projection).lean();
+        return response;
     } catch (error) {
-        console.error(error);
-        return { response: null, error };
+        throw error;
     }
 }
 
-export const getDataByValue = async (Model, queryObject, projection = '') => {
+export const getDataById = async (model, id, projection = '') => {
     try {
-        const response = await Model.find(queryObject, projection);
-        return { response, error: null };
+        const response = await model.findById(id, projection).lean();
+        return response;
     } catch (error) {
-        console.error(error);
-        return { response: null, error };
+        throw error;
     }
 }
 
-export const createData = async (Model, data) => {
+export const createData = async (model, data) => {
     try {
-        const response = await Model.create(data);
-        return { response, error: null };
+        const response = await model.create(data);
+        return response;
     } catch (error) {
-        console.error(error);
-        return { response: null, error };
+        throw error;
     }
 }
 
-export const editDataById = async (Model, id, data) => {
+export const editDataById = async (model, id, data) => {
     try {
-        const response = await Model.findByIdAndUpdate(id, data, { new: true });
-        return { response, error: null };
+        const response = await model.findByIdAndUpdate(id, data, { new: true });
+        return response;
     } catch (error) {
-        console.error(error);
-        return { response: null, error };
+        throw error;
     }
 }
 
-export const deleteDataById = async (Model, id) => {
+export const deleteDataById = async (model, id) => {
     try {
-        const response = await Model.findByIdAndDelete(id);
-        return { response, error: null };
+        const response = await model.findByIdAndDelete(id);
+        return response;
     } catch (error) {
-        console.error(error);
-        return { response: null, error };
+        throw error;
+    }
+}
+
+export const deleteDataByValue = async (model, queryObject = {}) => {
+    try {
+        const response = await model.findOneAndDelete(queryObject);
+        return response;
+    } catch (error) {
+        throw error;
     }
 }

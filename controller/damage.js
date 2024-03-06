@@ -1,6 +1,19 @@
-import { damageModel } from "../models/index.js";
-import { getData, getDataById, getDataByValue, createData, deleteDataById } from "./helper.js";
-import { isUser, isAdmin } from "./auth.js";
+import {
+    damageModel
+} from "../models/index.js";
+
+import {
+    getData,
+    getDataById,
+    createData,
+    editDataById,
+    deleteDataById
+} from "./helper.js";
+
+import {
+    isUser,
+    isAdmin
+} from "./auth.js";
 
 export const getAllDamagesController = async (req, res) => {
     try {
@@ -38,7 +51,7 @@ export const getAllDamagesByUserIdController = async (req, res) => {
 
         const { userId } = req.params;
 
-        const damages = await getDataByValue(damageModel, {['userId']: userId});
+        const damages = await getData(damageModel, { ['userId']: userId });
         if (damages.response.length === 0) {
             return res.status(404).json({ error: "There are no damages!" });
         }
@@ -123,11 +136,10 @@ export const editDamageByIdController = async (req, res) => {
 
         const { title, remarks, damageStatus = "received" } = req.body;
 
-        damage.response.title = title;
-        damage.response.remarks = remarks;
-        damage.response.damageStatus = damageStatus;
-
-        await damage.response.save();
+        const editedDamage = await editDataById(damageId, { title, remarks, damageStatus });
+        if (!editedDamage) {
+            return;
+        }
 
         return res.status(200).json({ message: "Successfully edited damage!" });
     } catch (error) { 

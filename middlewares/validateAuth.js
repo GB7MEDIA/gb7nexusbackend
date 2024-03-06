@@ -57,6 +57,10 @@ export const validateNewPassword = (req, res, next) => {
         return res.status(400).json({ error: "The new password code can not be left empty!" });
     }
 
+    if (! validPassword(newPassword)) {
+        return res.status(400).json({ error: "The password has to be valid!" });
+    }
+
     next();
 }
 

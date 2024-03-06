@@ -1,7 +1,29 @@
-import { userModel, tenantModel, tenantUserModel } from "../models/index.js";
-import { getDataById, getDataByValue, createData, deleteDataById } from "./helper.js";
-import { sendMail, sendSMS, createToken } from  "../middlewares/index.js";
-import { generateCode, hashPassword, comparePasswords, notEmpty } from "../utils/index.js";
+import {
+    userModel,
+    tenantModel,
+    tenantUserModel
+} from "../models/index.js";
+
+import {
+    getDataById,
+    getDataByValue,
+    createData,
+    editDataById,
+    deleteDataById
+} from "./helper.js";
+
+import {
+    sendMail,
+    sendSMS
+} from  "../middlewares/index.js";
+
+import {
+    generateCode,
+    createToken,
+    hashPassword,
+    comparePasswords,
+    notEmpty
+} from "../utils/index.js";
 
 export const loginController = async (req, res) => {
     try {
@@ -12,36 +34,40 @@ export const loginController = async (req, res) => {
             return res.status(404).json({ error: "There was no user with this email!" });
         }
 
-        if (user.response[0].active === false) {
+        if (user.response.active === false) {
             return  res.status(403).json({ error: "The user is not activated yet!" });
         }
 
-        const matchingPasswords = await comparePasswords(password, user.response[0].password);
+        const matchingPasswords = await comparePasswords(password, user.response.password);
         if (!matchingPasswords) {
             return res.status(401).json({ erorr: "The email or password is invalid!" });
         }
 
-        const tfaCode = generateCode(user.response[0].email);
-        const tfaLink = `${process.env.FRONTEND_BASE_URL}tfa?userId=${user.response[0]._id}&code=${tfaCode}`;
+        const tfaCode = generateCode(user.response.email);
+        const tfaLink = `${process.env.FRONTEND_BASE_URL}tfa?userId=${user.response._id}&code=${tfaCode}`;
 
-        user.response[0].tfaCode = tfaCode;
-        await user.response[0].save();
+        const setTfaCode = await editDataById(userModel, user.response._id, { tfaCode: tfaCode });
+        if (!setTfaCode.response) {
+            return;
+        }
 
-        if (user.response[0].tfaSetting === "false") {
-            user.response[0].tfaCode = "";
-            await user.response[0].save();
+        if (user.response.tfaSetting === "false") {
+            const removeTfaCode = await editDataById(userModel, user.response._id, { tfaCode: "" });
+            if (!removeTfaCode.response) {
+                return;
+            }
 
-            const authToken = createToken({ id: user.response[0]._id });
+            const authToken = createToken({ id: user.response._id });
 
-            sendMail(user.response[0].email, 'New Login!', `There was a new login detected! If this was you forget about this email. If not, please contact our support team as soon as possible.`);
+            sendMail(user.response.email, 'New Login!', `There was a new login detected! If this was you forget about this email. If not, please contact our support team as soon as possible.`);
 
             return res.status(200).json({ message: "Successfully logged in!", data: { token: authToken } });
-        } else if (user.response[0].tfaSetting === "email") {
-            sendMail(user.response[0].email, 'Two Factor Authentication!', `Here is your two factor authentication link: ${tfaLink}!`);
+        } else if (user.response.tfaSetting === "email") {
+            sendMail(user.response.email, 'Two Factor Authentication!', `Here is your two factor authentication link: ${tfaLink}!`);
 
             return res.status(200).json({ message: "Successfully send two factor authentication email!" });
-        } else if (user.response[0].tfaSetting === "sms") {
-            sendSMS(user.response[0].phonenumber, `Here is your two factor authentication link: ${tfaLink}!`);
+        } else if (user.response.tfaSetting === "sms") {
+            sendSMS(user.response.phonenumber, `Here is your two factor authentication link: ${tfaLink}!`);
 
             return res.status(200).json({ message: "Successfully send two factor authentication sms!" });
         }
@@ -55,7 +81,7 @@ export const registerController = async (req, res) => {
         const { name, email, phonenumber, tenantId = null, password } = req.body;
 
         const user = await getDataByValue(userModel, { ['email']: email });
-        if (user.response.length > 0) {
+        if (user.response) {
             return res.status(404).json({ error: "A user with this email already exists!" });
         }
 
@@ -76,7 +102,7 @@ export const registerController = async (req, res) => {
         const createdUser = await createData(userModel, newUser);
 
         if (notEmpty(tenantId)) {
-            const tenant = await getDataById(tenantModel, tenantId, '-objectId');
+            const tenant = await getDataById(tenantModel, tenantId);
             if (!tenant.response) {
                 await deleteDataById(userModel, createdUser.response._id);
                 return res.status(404).json({ error: "The tenant does not exist!" });
@@ -116,8 +142,10 @@ export const forgotPasswordController = async (req, res) => {
         const newPasswordCode = generateCode(user.response.email);
         const newPasswordLink = `${process.env.FRONTEND_BASE_URL}password/new?userId=${user.response._id}&code=${newPasswordCode}`;
 
-        user.response.tfaCode = newPasswordCode;
-        await user.response.save();
+        const setTfaCode = await editDataById(userModel, user.response._id, { tfaCode: newPasswordCode });
+        if (!setTfaCode.response) {
+            return;
+        }
 
         sendMail(user.response.email, 'New Password Link!', `Here is your new password link: ${newPasswordLink}`);
 
@@ -146,9 +174,10 @@ export const newPasswordController = async (req, res) => {
 
         const hashedPassword = await hashPassword(newPassword);
 
-        user.response.tfaCode = '';
-        user.response.password = hashedPassword;
-        await user.response.save();
+        const removeTfaCodeAndUpdatePassword = await editDataById(userModel, userId, { tfaCode: "", password: hashedPassword });
+        if (!removeTfaCodeAndUpdatePassword.response) {
+            return;
+        }
 
         sendMail(user.response.email, 'Password has been changed!', `Your password has been changed! If this was you, you may forget this email, if not please contact our support team as soon as possible!`);
 
@@ -171,9 +200,10 @@ export const activateAccountController = async (req, res) => {
             return  res.status(403).json({ error: "The activate account code is invalid!" });
         }
 
-        user.response.active = true;
-        user.response.tfaCode = '';
-        await user.response.save();
+        const removeTfaCodeAndUpdateActive = await editDataById(userModel, userId, { tfaCode: "", active: true });
+        if (!removeTfaCodeAndUpdateActive.response) {
+            return;
+        }
         
         sendMail(user.response.email, 'Account Active!', `Your account is now active! You may login now.`);
         
@@ -200,8 +230,10 @@ export const twoFactorAuthenticationController = async (req, res) => {
             return  res.status(403).json({ error: "The two factor authentication code is invalid!" });
         }
 
-        user.response.tfaCode = "";
-        await user.response.save();
+        const removeTfaCode = await editDataById(userModel, userId, { tfaCode: "" });
+        if (!removeTfaCode.response) {
+            return;
+        }
 
         const authToken = createToken({ id: user.response._id });
 

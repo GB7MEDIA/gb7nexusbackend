@@ -1,7 +1,28 @@
-import { userModel, chatModel, chatUserModel, chatMessageModel } from "../models/index.js";
-import { getData, getDataById, getDataByValue, createData, deleteDataById } from "./helper.js";
-import { notEmpty } from "../utils/index.js";
-import { isUser, isAdmin } from "./auth.js";
+import {
+    userModel,
+    chatModel,
+    chatUserModel,
+    chatMessageModel
+} from "../models/index.js";
+
+import {
+    getData,
+    getDataById,
+    getDataByValue,
+    createData,
+    editDataById,
+    deleteDataById,
+    deleteDataByValue
+} from "./helper.js";
+
+import {
+    notEmpty
+} from "../utils/index.js";
+
+import {
+    isUser,
+    isAdmin
+} from "./auth.js";
 
 export const getAllChatsController = async (req, res) => {
     try {
@@ -38,7 +59,7 @@ export const getAllChatsByUserIdController = async (req, res) => {
 
         const { userId } = req.params;
 
-        const chatIdsResult = await getDataByValue(chatUserModel, {['userId']: userId});
+        const chatIdsResult = await getData(chatUserModel, { ['userId']: userId });
         if (chatIdsResult.response.length === 0) {
             return res.status(404).json({ error: "There were no chat ids found for this user!" });
         }
@@ -96,7 +117,7 @@ export const getChatMessagesByChatIdController = async (req, res) => {
             return res.status(404).json({ error: "A chat with this id does not exist!" });
         }
 
-        const messages = await getDataByValue(chatMessageModel, {['chatId']: chatId});
+        const messages = await getData(chatMessageModel, { ['chatId']: chatId });
         if (messages.response.length === 0) {
             return res.status(404).json({ error: "There are no messages for this chat id!" });
         }
@@ -145,7 +166,7 @@ export const getChatUsersByChatIdController = async (req, res) => {
             return res.status(404).json({ error: "A chat with this id does not exist!" });
         }
 
-        const userIds = await getDataByValue( chatUserModel, { ['chatId']: chatId } );
+        const userIds = await getData( chatUserModel, { ['chatId']: chatId } );
         if (userIds.response.length === 0) {
             return res.status(404).json({ error: "There are no users for this chat id!" });
         }
@@ -180,7 +201,7 @@ export const createChatController = async (req, res) => {
         const { chatname, chatusers, chatrights } = req.body;
 
         const chat = await getDataByValue(chatModel, { ['chatname']: chatname });
-        if (chat.response.length > 0) {
+        if (chat.response) {
             return res.status(404).json({ error: "A chat with this name already exists!" });
         }
 
@@ -280,12 +301,9 @@ export const editChatByIdController = async (req, res) => {
 
         const { chatname, chatusers, chatrights } = req.body;
 
-        chat.response.chatname = chatname;
-        chat.response.chatrights = chatrights;
-        const editedChat = await chat.response.save();
-
+        const editedChat = await editDataById(chatId, { chatname, chatrights });
         if (editedChat) {
-            const existingUsers = await getDataByValue(chatUserModel, {['chatId']: chatId});
+            const existingUsers = await getData(chatUserModel, { ['chatId']: chatId });
             const existingUserIds = existingUsers.response.map(user => user.userId);
 
             const chatUserIds = chatusers.map(chatUser => chatUser[0]);
@@ -294,8 +312,7 @@ export const editChatByIdController = async (req, res) => {
             const usersToAdd = chatusers.filter(chatUser => !existingUserIds.includes(chatUser[0]));
 
             const removePromises = usersToRemove.map(async user => {
-                const toDeletedId = await getDataByValue(chatUserModel, {['userId']: user.toString()});
-                await deleteDataById(chatUserModel, toDeletedId.response[0]._id.toString());
+                await deleteDataByValue(chatUserModel, { ['userId']: user.toString(), ['chatId']: chatId });
             });
 
             const addPromises = usersToAdd.map(async user => {
@@ -351,8 +368,10 @@ export const editChatMessageByIdController = async (req, res) => {
         
         const { text } = req.body;
 
-        message.response.text = text;
-        await message.response.save();
+        const editedMessage = await editDataById(messageId, { text });
+        if (!editedMessage) {
+            return;
+        }
 
         return res.status(200).json({ message: "Successfully edited message!" });
     } catch (error) { 
@@ -395,12 +414,12 @@ export const deleteChatByIdController = async (req, res) => {
             return res.status(200).json({ message: "Successfully left chat and deleted all relevant chat data!" });
         }
 
-        const chatUsers = await getDataByValue(chatUserModel, {['chatId']: chatId});
+        const chatUsers = await getDataByValue(chatUserModel, { ['chatId']: chatId });
         await Promise.all(chatUsers.response.map(async (user) => {
             await deleteDataById(chatUserModel, user._id);
         }));
 
-        const chatMessages = await getDataByValue(chatMessageModel, {['chatId']: chatId});
+        const chatMessages = await getDataByValue(chatMessageModel, { ['chatId']: chatId });
         await Promise.all(chatMessages.response.map(async (message) => {
             await deleteDataById(chatMessageModel, message._id);
         }));
@@ -451,11 +470,11 @@ const isChatAdmin = async (userId) => {
         }
 
         const chatUser = await getDataByValue(chatUserModel, { ['userId']: userId });
-        if (!chatUser.response[0]) {
+        if (!chatUser.response) {
             return false;
         }
 
-        if (chatUser.response[0].isAdmin === true) {
+        if (chatUser.response.isAdmin === true) {
             return true;
         }
 
