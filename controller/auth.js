@@ -72,6 +72,7 @@ export const loginController = async (req, res) => {
             return res.status(200).json({ message: "Successfully send two factor authentication sms!" });
         }
     } catch (error) { 
+        console.error(error);
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
 }
