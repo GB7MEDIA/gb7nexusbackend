@@ -8,6 +8,7 @@ import {
 import {
     getData,
     getDataById,
+    getDataByValue,
     createData,
     editDataById,
     deleteDataById
@@ -37,12 +38,27 @@ export const getAllTenantsController = async (req, res) => {
         }
 
         const tenants = await getData(tenantModel);
-        if (tenants.response.length === 0) {
+        if (tenants.length === 0) {
             return res.status(404).json({ error: "There was no tenants found!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved all tenants!", data: { tenants: tenants.response } });
-    } catch (error) { 
+        const tenantsWithObjects = await Promise.all(tenants.map(async (tenant) => {
+            const object = await getDataById(objectModel, tenant.objectId);
+            return {
+                id: tenant._id,
+                companyname: tenant.companyname,
+                object: {
+                    id: object._id,
+                    objectname: object.objectname
+                },
+                createdAt: tenant.createdAt,
+                updatedAt: tenant.updatedAt
+            };
+        }));
+
+        return res.status(200).json({ message: "Successfully retrieved all tenants!", data: { tenants: tenantsWithObjects } });
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
 }
@@ -62,11 +78,24 @@ export const getTenantByIdController = async (req, res) => {
         const { tenantId } = req.params;
 
         const tenant = await getDataById(tenantModel, tenantId);
-        if (!tenant.response) {
+        if (!tenant) {
             return res.status(404).json({ error: "There was no tenant found!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved tenant!", data: { tenant: tenant.response } });
+        const object = await getDataById(objectModel, tenant.objectId);
+
+        const tenantWithObjectName = {
+            id: tenant._id,
+            companyname: tenant.companyname,
+            object: {
+                id: object._id,
+                objectname: object.objectname
+            },
+            createdAt: tenant.createdAt,
+            updatedAt: tenant.updatedAt
+        };
+
+        return res.status(200).json({ message: "Successfully retrieved tenant!", data: { tenant: tenantWithObjectName } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -83,15 +112,15 @@ export const getTenantUsersByTenantIdController = async (req, res) => {
 
         const { tenantId } = req.params;
 
-        const usersIds = await getData(tenantUserModel, { ["tenantId"]: tenantId });
-        if (usersIds.response.length === 0) {
+        const usersIds = await getData(tenantUserModel, { ['tenantId']: tenantId });
+        if (usersIds.length === 0) {
             return res.status(404).json({ error: "There are no existing users for this tenant." });
         }
         
         const users = await Promise.all(
-            usersIds.response.map(async (user) => {
+            usersIds.map(async (user) => {
                 const userData = await getDataById(userModel, user.userId);
-                return userData.response;
+                return userData;
             })
         );
 
@@ -113,12 +142,13 @@ export const getTenantByUserIdController = async (req, res) => {
         const { userId } = req.params;
 
         const tenantId = await getDataByValue(tenantUserModel, { ["userId"]: userId });
-        if (!tenantId.response) {
+        if (!tenantId) {
             return res.status(404).json({ error: "This user is not a tenant." });
         }
 
         return res.status(200).json({ message: "Successfully retrieved all tenant users!", data: { tenantId } });
     } catch (error) { 
+        console.log(error);
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
 }
@@ -140,7 +170,7 @@ export const createTenantController = async (req, res) => {
         const { companyname, objectId } = req.body;
 
         const object = await getDataById(objectModel, objectId);
-        if (!object.response) {
+        if (!object) {
             return res.status(404).json({ error: "There was no object found!" });
         }
 
@@ -176,11 +206,11 @@ export const editTenantByIdController = async (req, res) => {
         const { companyname, objectId } = req.body;
 
         const tenant = await getDataById(tenantModel, tenantId);
-        if (!tenant.response) {
+        if (!tenant) {
             return res.status(404).json({ error: "There was no tenant found!" });
         }
 
-        const editedTenant = await editDataById(tenantId, { companyname, objectId });
+        const editedTenant = await editDataById(tenantModel, tenantId, { companyname, objectId });
         if (!editedTenant) {
             return;
         }
@@ -208,7 +238,7 @@ export const deleteTenantByIdController = async (req, res) => {
         const { tenantId } = req.params;
 
         const tenant = await getDataById(tenantModel, tenantId);
-        if (!tenant.response) {
+        if (!tenant) {
             return res.status(404).json({ error: "There was no tenant found!" });
         }
 

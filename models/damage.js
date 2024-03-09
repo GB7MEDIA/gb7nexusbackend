@@ -10,6 +10,11 @@ const damageSchema = new mongoose.Schema({
         required: true,
         ref: 'User'
     },
+    mediaUrl: {
+        type: String,
+        required: false,
+        default: ""
+    },
     objectId: {
         type: mongoose.Types.ObjectId,
         required: true,

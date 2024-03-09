@@ -10,6 +10,10 @@ const marketPlaceSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    mediaUrls: {
+        type: mongoose.Schema.Types.Mixed,
+        required: true
+    },
     description: {
         type: String,
         required: true

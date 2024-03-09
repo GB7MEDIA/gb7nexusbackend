@@ -30,11 +30,11 @@ export const getAllObjectsController = async (req, res) => {
         }
 
         const objects = await getData(objectModel);
-        if (objects.response.length === 0) {
+        if (objects.length === 0) {
             return res.status(404).json({ error: "No objects found!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved all objects!", data: { objects: objects.response } });
+        return res.status(200).json({ message: "Successfully retrieved all objects!", data: { objects: objects } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -52,11 +52,11 @@ export const getObjectByIdController = async (req, res) => {
         const { objectId } = req.params;
 
         const object = await getDataById(objectModel, objectId);
-        if (!object.response) {
+        if (!object) {
             return res.status(404).json({ error: "There was no object found!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved object!", data: { object: object.response } });
+        return res.status(200).json({ message: "Successfully retrieved object!", data: { object: object } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -74,11 +74,11 @@ export const getObjectAdressesByObjectIdController = async (req, res) => {
         const { objectId } = req.params;
 
         const adresses = await getData(objectAdressModel, { ['objectId']: objectId });
-        if (adresses.response.length === 0) {
+        if (adresses.length === 0) {
             return res.status(404).json({ error: "There were no adresess found!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved all adresses!", data: { adresses: adresses.response } });
+        return res.status(200).json({ message: "Successfully retrieved all adresses!", data: { adresses: adresses } });
     } catch (error) { 
         console.error(error);
         return res.status(500).json({ error: "There was a server error please try again later!" });
@@ -167,7 +167,7 @@ export const editObjectByIdController = async (req, res) => {
         const { objectname } = req.body;
 
         const object = await getDataById(objectModel, objectId);
-        if (!object.response) {
+        if (!object) {
             return  res.status(404).json({ error: "The object does not exist!" });
         }
 
@@ -196,7 +196,7 @@ export const editObjectAdressByIdController = async (req, res) => {
         const { adress, floors } = req.body;
 
         const adressData = await getDataById(objectAdressModel, adressId);
-        if (!adressData.response) {
+        if (!adressData) {
             return res.status(404).json({ error: "The adress does not exist!" });
         }
 
@@ -228,12 +228,12 @@ export const deleteObjectByIdController = async (req, res) => {
         const { objectId } = req.params;
 
         const object = await getDataById(objectModel, objectId);
-        if (!object.response) {
+        if (!object) {
             return  res.status(404).json({ error: "The object does not exist!" });
         }
 
         const adresses = await getData(objectAdressModel, { [objectId]: objectId });
-        const deletionPromises = adresses.response.map(async (address) => await deleteAddressById(address._id));
+        const deletionPromises = adresses.map(async (address) => await deleteAddressById(address._id));
         await Promise.all(deletionPromises);
 
         await deleteDataById(objectModel, objectId);
@@ -261,7 +261,7 @@ export const deleteObjectAdressByIdController = async (req, res) => {
         const { adressId } = req.params;
 
         const adress = await getDataById(objectAdressModel, adressId);
-        if (!adress.response) {
+        if (!adress) {
             return  res.status(404).json({ error: "The adress does not exist!" });
         }
 

@@ -75,7 +75,3 @@ export {
     validateEditMarketPlaceProductById,
     validateDeleteMarketPlaceProductById
 } from "./validateIndex.js";
-
-export {
-    uploadMiddleware
-} from "./upload.js";

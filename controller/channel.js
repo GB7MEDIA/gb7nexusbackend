@@ -38,11 +38,26 @@ export const getAllChannelsController = async (req, res) => {
         }
 
         const channels = await getData(channelModel);
-        if (channels.response.length === 0) {
+        if (channels.length === 0) {
             return res.status(404).json({ error: "There are no channels!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved all channels!", data: { channels: channels.response } });
+        const channelsWithCreatedByUserName = await Promise.all(channels.map(async (channel) => {
+            const user = await getDataById(userModel, channel.createdBy);
+            return {
+                id: channel._id,
+                channelname: channel.channelname,
+                channelrights: channel.channelrights,
+                createdBy: {
+                    id: user._id,
+                    name: user.name
+                },
+                createdAt: channel.createdAt,
+                updatedAt: channel.updatedAt
+            };
+        }));
+
+        return res.status(200).json({ message: "Successfully retrieved all channels!", data: { channels: channelsWithCreatedByUserName } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -59,18 +74,31 @@ export const getAllChannelsByUserIdController = async (req, res) => {
         const { userId } = req.params;
 
         const channelIdsResult = await getData(channelUserModel, { ['userId']: userId });
-        if (channelIdsResult.response.length === 0) {
+        if (channelIdsResult.length === 0) {
             return res.status(404).json({ error: "There were no channel ids found for this user!" });
         }
 
-        const channelsData = await Promise.all(channelIdsResult.response.map(async (channelUser) => {
+        const channelsData = await Promise.all(channelIdsResult.map(async (channelUser) => {
             const channelData = await getDataById(channelModel, channelUser.channelId);
-            return channelData.response;
+            return channelData;
         }));
 
-        const validChannels = channelsData.filter(channel => channel != null);
+        const channelsWithCreatedByUserName = await Promise.all(channelsData.map(async (channel) => {
+            const user = await getDataById(userModel, channel.createdBy);
+            return {
+                id: channel._id,
+                channelname: channel.channelname,
+                channelrights: channel.channelrights,
+                createdBy: {
+                    id: user._id,
+                    name: user.name
+                },
+                createdAt: channel.createdAt,
+                updatedAt: channel.updatedAt
+            };
+        }));
 
-        return res.json({ message: "Successfully retrieved all channels!", data: { channels: validChannels } });
+        return res.json({ message: "Successfully retrieved all channels!", data: { channels: channelsWithCreatedByUserName } });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ error: "There was a server error please try again later!" });
@@ -88,11 +116,25 @@ export const getChannelByIdController = async (req, res) => {
 
         const { channelId } = req.params;
         const channel = await getDataById(channelModel, channelId);
-        if (!channel.response) {
+        if (!channel) {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved channel!", data: { channel: channel.response } });
+        const user = await getDataById(userModel, channel.createdBy);
+
+        const channelWithCreatedByUserName = {
+            id: channel._id,
+            channelname: channel.channelname,
+            channelrights: channel.channelrights,
+            createdBy: {
+                id: user._id,
+                name: user.name
+            },
+            createdAt: channel.createdAt,
+            updatedAt: channel.updatedAt
+        };
+
+        return res.status(200).json({ message: "Successfully retrieved channel!", data: { channel: channelWithCreatedByUserName } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -108,16 +150,21 @@ export const getChannelMessagesByChannelIdController = async (req, res) => {
 
         const { channelId } = req.params;
         const channel = await getDataById(channelModel, channelId);
-        if (!channel.response) {
+        if (!channel) {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
         const messages = await getData( channelMessageModel, { ['channelId']: channelId } );
-        if (messages.response.length === 0) {
+        if (messages.length === 0) {
             return res.status(404).json({ error: "There are no messages for this channel id!" });
         }
 
-        return  res.status(200).json({ message: "Successfully retrieved all messages!", data: { messages: messages.response } });
+        const messagesWithUserNames = await Promise.all(messages.map(async (message) => {
+            const user = await getDataById(userModel, message.userId);
+            return { id: message._id, channelId: message.channelId, user: { id: user._id, name: user.name }, title: message.title, text: message.text, createdAt: message.createdAt, updatedAt: message.updatedAt };
+        }));
+
+        return  res.status(200).json({ message: "Successfully retrieved all messages!", data: { messages: messagesWithUserNames } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -134,11 +181,11 @@ export const getChannelMessageByMessageIdController = async (req, res) => {
         const { messageId } = req.params;
 
         const message = await getDataById( channelMessageModel, messageId );
-        if (!message.response) {
+        if (!message) {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
-        return  res.status(200).json({ message: "Successfully retrieved message!", data: { message: message.response } });
+        return  res.status(200).json({ message: "Successfully retrieved message!", data: { message: message } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -154,19 +201,19 @@ export const getChannelUsersByChannelIdController = async (req, res) => {
 
         const { channelId } = req.params;
         const channel = await getDataById(channelModel, channelId);
-        if (!channel.response) {
+        if (!channel) {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
         const usersIds = await getData( channelUserModel, { ['channelId']: channelId } );
-        if (usersIds.response === 0) {
+        if (usersIds.length === 0) {
             return res.status(404).json({ error: "There are no users for this channel id!" });
         }
 
         const users = await Promise.all(
-            usersIds.response.map(async (user) => {
+            usersIds.map(async (user) => {
                 const userData = await getDataById(userModel, user.userId);
-                return { _id: userData.response._id, name: userData.response.name, isAdmin: user.isAdmin };
+                return { _id: userData._id, name: userData.name, isAdmin: user.isAdmin };
             })
         );
 
@@ -192,7 +239,7 @@ export const createChannelController = async (req, res) => {
         const { channelname, channelusers, channelrights } = req.body;
 
         const channel = await getDataByValue( channelModel, { ['channelname']: channelname } );
-        if (channel.response) {
+        if (channel) {
             return res.status(404).json({ error: "A channel with this name already exists!" });
         }
 
@@ -207,11 +254,11 @@ export const createChannelController = async (req, res) => {
         if (createdChannel) {
             await Promise.all(channelusers.map(async (user) => {
 
-                const existingUser = await getDataById(userModel, user._id);
+                const existingUser = await getDataById(userModel, user[0]);
 
                 if (existingUser) {
                     let newChannelUser = {
-                        channelId: createdChannel.response._id,
+                        channelId: createdChannel._id,
                         userId: user[0],
                         isAdmin: user[1]
                     };
@@ -221,7 +268,7 @@ export const createChannelController = async (req, res) => {
             }));
         }
 
-        return res.status(200).json({ message: "Successfully created this channel!", data: { channel: createdChannel.response } });
+        return res.status(200).json({ message: "Successfully created this channel!" });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -242,7 +289,7 @@ export const createChannelMessageByChannelIdController = async (req, res) => {
 
         const { channelId } = req.params;
         const channel = await getDataById(channelModel, channelId);
-        if (!channel.response) {
+        if (!channel) {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
@@ -276,14 +323,15 @@ export const editChannelByIdController = async (req, res) => {
             return res.status(403).json({ error: "You are unauthorized for this action!" });
         }
 
-        const channelAdmin = await isChannelAdmin(currentUserId);
+        const { channelId } = req.params;
+
+        const channelAdmin = await isChannelAdmin(currentUserId, channelId);
         if (!channelAdmin) {
             return res.status(403).json({ error: "You are unauthorized for this action!" });
         }
 
-        const { channelId } = req.params;
         const channel = await getDataById(channelModel, channelId);
-        if (!channel.response) {
+        if (!channel) {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
@@ -291,8 +339,8 @@ export const editChannelByIdController = async (req, res) => {
 
         const editedChannel = await editDataById(channelModel, channelId, { channelname: channelname, channelrights: channelrights });
         if (editedChannel) {
-            const existingUsers = await getDataByValue(channelUserModel, { ['channelId']: channelId });
-            const existingUserIds = existingUsers.response.map(user => user.userId);
+            const existingUsers = await getData(channelUserModel, { ['channelId']: channelId });
+            const existingUserIds = existingUsers.map(user => user.userId);
 
             const channelUserIds = channelusers.map(channelUser => channelUser[0]);
             const usersToRemove = existingUserIds.filter(existingUserId => !channelUserIds.includes(existingUserId.toString()));
@@ -305,10 +353,10 @@ export const editChannelByIdController = async (req, res) => {
             const addPromises = usersToAdd.map(async user => {
                 const existingUser = await getDataById(userModel, user[0]);
               
-                if (existingUser.response) {
+                if (existingUser) {
                   const existingInChannel = await getDataByValue(channelUserModel, { ['userId']: user[0], ['channelId']: channelId });
               
-                  if (!existingInChannel.response) {
+                  if (!existingInChannel) {
                     let newChannelUser = {
                       channelId,
                       userId: user[0],
@@ -355,13 +403,13 @@ export const editChannelMessageByIdController = async (req, res) => {
         
         const { title, text } = req.body;
 
-        const editChannelMessage = await editDataById(messageId, { title, text });
+        const editChannelMessage = await editDataById(channelMessageModel, messageId, { title, text });
         if (!editChannelMessage) {
             return;
         }
 
         return res.status(200).json({ message: "Successfully edited message!" });
-    } catch (error) { 
+    } catch (error) {
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
 }
@@ -379,24 +427,26 @@ export const deleteChannelByIdController = async (req, res) => {
             return res.status(403).json({ error: "You are unauthorized for this action!" });
         }
 
-        const channelAdmin = await isChannelAdmin(currentUserId);
+        const { channelId } = req.params;
+
+        const channelAdmin = await isChannelAdmin(currentUserId, channelId);
         if (!channelAdmin) {
             return res.status(403).json({ error: "You are unauthorized for this action!" });
         }
 
-        const { channelId } = req.params;
+
         const channel = await getDataById(channelModel, channelId);
-        if (!channel.response) {
+        if (!channel) {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
         const channelUsers = await getData(channelUserModel, { ['channelId']: channelId });
-        await Promise.all(channelUsers.response.map(async (user) => {
+        await Promise.all(channelUsers.map(async (user) => {
             await deleteDataById(channelUserModel, user._id);
         }));
 
         const channelMessages = await getData(channelMessageModel, { ['channelId']: channelId });
-        await Promise.all(channelMessages.response.map(async (message) => {
+        await Promise.all(channelMessages.map(async (message) => {
             await deleteDataById(channelMessageModel, message._id);
         }));
 
@@ -433,7 +483,7 @@ export const deleteChannelMessageByIdController = async (req, res) => {
     }
 }
 
-const isChannelAdmin = async (userId) => {
+const isChannelAdmin = async (userId, channelId) => {
     try {
         if (! notEmpty(userId)) {
             return false;
@@ -444,12 +494,12 @@ const isChannelAdmin = async (userId) => {
             return false;
         }
 
-        const channelUser = await getDataByValue(channelUserModel, { ['userId']: userId });
-        if (!channelUser.response) {
+        const channelUser = await getDataByValue(channelUserModel, { ['userId']: userId, ['channelId']: channelId });
+        if (!channelUser) {
             return false;
         }
 
-        if (channelUser.response.isAdmin === true) {
+        if (channelUser.isAdmin === true) {
             return true;
         }
 

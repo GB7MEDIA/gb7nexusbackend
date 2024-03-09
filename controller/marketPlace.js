@@ -1,4 +1,5 @@
 import {
+    userModel,
     marketPlaceModel
 } from "../models/index.js";
 
@@ -24,11 +25,27 @@ export const getMarketPlaceProductsController = async (req, res) => {
         }
 
         const products = await getData(marketPlaceModel);
-        if (products.response.length === 0) {
+        if (products.length === 0) {
             return res.status(404).json({ error: "There are no products!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved all products!", data: { products: products.response } });
+        const productsWithUserNames = await Promise.all(products.map(async (product) => {
+            const user = await getDataById(userModel, product.userId);
+            return {
+                id: product._id,
+                title: product.title,
+                files: product.mediaUrls,
+                description: product.description,
+                user: {
+                    id: user._id,
+                    name: user.name
+                },
+                createdAt: product.createdAt,
+                updatedAt: product.updatedAt
+            };
+        }));
+
+        return res.status(200).json({ message: "Successfully retrieved all products!", data: { products: productsWithUserNames } });
     } catch (error) {
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -46,11 +63,26 @@ export const getMarketPlaceProductByIdController = async (req, res) => {
         const { productId } = req.params;
 
         const product = await getDataById(marketPlaceModel, productId);
-        if (!product.response) {
+        if (!product) {
             return res.status(404).json({ error: "There is no product with this id!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved product!", data: { product: product.response } });
+        const user = await getDataById(userModel, product.userId);
+
+        const productWithUserName = {
+            id: product._id,
+            title: product.title,
+            files: product.mediaUrls,
+            description: product.description,
+            user: {
+                id: user._id,
+                name: user.name
+            },
+            createdAt: product.createdAt,
+            updatedAt: product.updatedAt
+        };
+
+        return res.status(200).json({ message: "Successfully retrieved product!", data: { product: productWithUserName } });
     } catch (error) {
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -65,17 +97,18 @@ export const createMarketPlaceProductController = async (req, res) => {
             return res.status(404).json({ error: "The user id you are logged in with does not exist!" });
         }
 
-        const { title, description } = req.body;
+        const { title, mediaUrls = "", description } = req.body;
 
         let newProduct = {
             userId: currentUserId,
             title,
+            mediaUrls: mediaUrls ?? '',
             description
         };
 
         const createdProduct = await createData(marketPlaceModel, newProduct);
 
-        return res.status(200).json({ message: "Successfully created product!", data: { product: createdProduct.response } });
+        return res.status(200).json({ message: "Successfully created product!" });
     } catch (error) {
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -92,18 +125,18 @@ export const editMarketPlaceProductByIdController = async (req, res) => {
 
         const { productId } = req.params;
         const product = await getDataById(marketPlaceModel, productId);
-        if (!product.response) {
+        if (!product) {
             return res.status(404).json({ error: "There is no product with this id!" });
         }
 
         const { title, description } = req.body;
 
-        const editedProduct = await editDataById(productId, { title, description });
-        if (!editedProduct.response) {
+        const editedProduct = await editDataById(marketPlaceModel, productId, { title, description });
+        if (!editedProduct) {
             return;
         }
 
-        return res.status(200).json({ message: "Successfully edited product!", data: { product: editedProduct.response } });
+        return res.status(200).json({ message: "Successfully edited product!" });
     } catch (error) {
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -120,7 +153,7 @@ export const deleteMarketPlaceProductByIdController = async (req, res) => {
 
         const { productId } = req.params;
         const product = await getDataById(marketPlaceModel, productId);
-        if (!product.response) {
+        if (!product) {
             return res.status(404).json({ error: "There is no product with this id!" });
         }
 

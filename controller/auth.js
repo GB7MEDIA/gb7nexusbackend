@@ -30,49 +30,48 @@ export const loginController = async (req, res) => {
         const { email, password } = req.body;
 
         const user = await getDataByValue(userModel, { ['email']: email });
-        if (!user.response) {
+        if (!user) {
             return res.status(404).json({ error: "There was no user with this email!" });
         }
 
-        if (user.response.active === false) {
+        if (user.active === false) {
             return  res.status(403).json({ error: "The user is not activated yet!" });
         }
 
-        const matchingPasswords = await comparePasswords(password, user.response.password);
+        const matchingPasswords = await comparePasswords(password, user.password);
         if (!matchingPasswords) {
             return res.status(401).json({ erorr: "The email or password is invalid!" });
         }
 
-        const tfaCode = generateCode(user.response.email);
-        const tfaLink = `${process.env.FRONTEND_BASE_URL}tfa?userId=${user.response._id}&code=${tfaCode}`;
+        const tfaCode = generateCode(user.email);
+        const tfaLink = `${process.env.FRONTEND_BASE_URL}tfa?userId=${user._id}&code=${tfaCode}`;
 
-        const setTfaCode = await editDataById(userModel, user.response._id, { tfaCode: tfaCode });
-        if (!setTfaCode.response) {
+        const setTfaCode = await editDataById(userModel, user._id, { tfaCode: tfaCode });
+        if (!setTfaCode) {
             return;
         }
 
-        if (user.response.tfaSetting === "false") {
-            const removeTfaCode = await editDataById(userModel, user.response._id, { tfaCode: "" });
-            if (!removeTfaCode.response) {
+        if (user.tfaSetting === "false") {
+            const removeTfaCode = await editDataById(userModel, user._id, { tfaCode: "" });
+            if (!removeTfaCode) {
                 return;
             }
 
-            const authToken = createToken({ id: user.response._id });
+            const authToken = createToken({ id: user._id });
 
-            sendMail(user.response.email, 'New Login!', `There was a new login detected! If this was you forget about this email. If not, please contact our support team as soon as possible.`);
+            sendMail(user.email, 'New Login!', `There was a new login detected! If this was you forget about this email. If not, please contact our support team as soon as possible.`);
 
-            return res.status(200).json({ message: "Successfully logged in!", data: { token: authToken } });
+            return res.status(200).json({ message: "Successfully logged in!", data: { token: authToken, user } });
         } else if (user.response.tfaSetting === "email") {
-            sendMail(user.response.email, 'Two Factor Authentication!', `Here is your two factor authentication link: ${tfaLink}!`);
+            sendMail(user.email, 'Two Factor Authentication!', `Here is your two factor authentication link: ${tfaLink}!`);
 
             return res.status(200).json({ message: "Successfully send two factor authentication email!" });
-        } else if (user.response.tfaSetting === "sms") {
-            sendSMS(user.response.phonenumber, `Here is your two factor authentication link: ${tfaLink}!`);
+        } else if (user.tfaSetting === "sms") {
+            sendSMS(user.phonenumber, `Here is your two factor authentication link: ${tfaLink}!`);
 
             return res.status(200).json({ message: "Successfully send two factor authentication sms!" });
         }
     } catch (error) { 
-        console.error(error);
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
 }
@@ -82,7 +81,7 @@ export const registerController = async (req, res) => {
         const { name, email, phonenumber, tenantId = null, password } = req.body;
 
         const user = await getDataByValue(userModel, { ['email']: email });
-        if (user.response) {
+        if (user) {
             return res.status(404).json({ error: "A user with this email already exists!" });
         }
 
@@ -105,21 +104,21 @@ export const registerController = async (req, res) => {
         if (notEmpty(tenantId)) {
             const tenant = await getDataById(tenantModel, tenantId);
             if (!tenant.response) {
-                await deleteDataById(userModel, createdUser.response._id);
+                await deleteDataById(userModel, createdUser._id);
                 return res.status(404).json({ error: "The tenant does not exist!" });
             }
 
             let newTenantUser = {
-                userId: createdUser.response._id,
+                userId: createdUser._id,
                 tenantId
             };
 
             await createData(tenantUserModel, newTenantUser);
         }
 
-        const activationLink = `${process.env.FRONTEND_BASE_URL}activate?userId=${createdUser.response._id}&code=${activationCode}`;
+        const activationLink = `${process.env.FRONTEND_BASE_URL}activate?userId=${createdUser._id}&code=${activationCode}`;
 
-        sendMail(createdUser.response.email, 'Activation Required!', `Here is the activation link: ${activationLink}`);
+        sendMail(createdUser.email, 'Activation Required!', `Here is the activation link: ${activationLink}`);
 
         return res.status(200).json({ message: "Successfiully registered!" });
     } catch (error) {
@@ -132,26 +131,26 @@ export const forgotPasswordController = async (req, res) => {
         const { email } = req.body;
 
         const user = await getDataByValue(userModel, { ['email']: email });
-        if (!user.response) {
+        if (!user) {
             return res.status(404).json({ error: "There was no user with this email!" });
         }
 
-        if (user.response.active === false) {
+        if (user.active === false) {
             return  res.status(403).json({ error: "The user is not activated yet!" });
         }
 
-        const newPasswordCode = generateCode(user.response.email);
-        const newPasswordLink = `${process.env.FRONTEND_BASE_URL}password/new?userId=${user.response._id}&code=${newPasswordCode}`;
+        const newPasswordCode = generateCode(user.email);
+        const newPasswordLink = `${process.env.FRONTEND_BASE_URL}password/new?userId=${user._id}&code=${newPasswordCode}`;
 
-        const setTfaCode = await editDataById(userModel, user.response._id, { tfaCode: newPasswordCode });
-        if (!setTfaCode.response) {
+        const setTfaCode = await editDataById(userModel, user._id, { tfaCode: newPasswordCode });
+        if (!setTfaCode) {
             return;
         }
 
-        sendMail(user.response.email, 'New Password Link!', `Here is your new password link: ${newPasswordLink}`);
+        sendMail(user.email, 'New Password Link!', `Here is your new password link: ${newPasswordLink}`);
 
         return res.status(200).json({ message: "Successfully send a new password link!" });
-    } catch (error) { 
+    } catch (error) {
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
 }
@@ -161,26 +160,26 @@ export const newPasswordController = async (req, res) => {
         const { userId, newPasswordCode, newPassword } = req.body;
 
         const user = await getDataById(userModel, userId);
-        if (!user.response) {
+        if (!user) {
             return res.status(404).json({ error: "There was no user with this user id!" });
         }
 
-        if (user.response.active === false) {
+        if (user.active === false) {
             return  res.status(403).json({ error: "The user is not activated yet!" });
         }
 
-        if (user.response.tfaCode !== newPasswordCode) {
+        if (user.tfaCode !== newPasswordCode) {
             return  res.status(403).json({ error: "The new password code is invalid!" });
         }
 
         const hashedPassword = await hashPassword(newPassword);
 
         const removeTfaCodeAndUpdatePassword = await editDataById(userModel, userId, { tfaCode: "", password: hashedPassword });
-        if (!removeTfaCodeAndUpdatePassword.response) {
+        if (!removeTfaCodeAndUpdatePassword) {
             return;
         }
 
-        sendMail(user.response.email, 'Password has been changed!', `Your password has been changed! If this was you, you may forget this email, if not please contact our support team as soon as possible!`);
+        sendMail(user.email, 'Password has been changed!', `Your password has been changed! If this was you, you may forget this email, if not please contact our support team as soon as possible!`);
 
         return res.status(200).json({ message: "Successfully changed the password!" });
     } catch (error) { 
@@ -193,20 +192,20 @@ export const activateAccountController = async (req, res) => {
         const { userId, activationCode } = req.body;
 
         const user = await getDataById(userModel, userId);
-        if (!user.response) {
+        if (!user) {
             return res.status(404).json({ error: "There was no user with this user id!" });
         }
 
-        if (user.response.tfaCode !== activationCode) {
+        if (user.tfaCode !== activationCode) {
             return  res.status(403).json({ error: "The activate account code is invalid!" });
         }
 
         const removeTfaCodeAndUpdateActive = await editDataById(userModel, userId, { tfaCode: "", active: true });
-        if (!removeTfaCodeAndUpdateActive.response) {
+        if (!removeTfaCodeAndUpdateActive) {
             return;
         }
         
-        sendMail(user.response.email, 'Account Active!', `Your account is now active! You may login now.`);
+        sendMail(user.email, 'Account Active!', `Your account is now active! You may login now.`);
         
         return res.status(200).json({ message: "Successfully activated account!" });
     } catch (error) { 
@@ -219,26 +218,26 @@ export const twoFactorAuthenticationController = async (req, res) => {
         const { userId, tfaCode } = req.body;
 
         const user = await getDataById(userModel, userId);
-        if (!user.response) {
+        if (!user) {
             return res.status(404).json({ error: "There was no user with this user id!" });
         }
 
-        if (user.response.active === false) {
+        if (user.active === false) {
             return  res.status(403).json({ error: "The user is not activated yet!" });
         }
 
-        if (user.response.tfaCode !== tfaCode) {
+        if (user.tfaCode !== tfaCode) {
             return  res.status(403).json({ error: "The two factor authentication code is invalid!" });
         }
 
         const removeTfaCode = await editDataById(userModel, userId, { tfaCode: "" });
-        if (!removeTfaCode.response) {
+        if (!removeTfaCode) {
             return;
         }
 
-        const authToken = createToken({ id: user.response._id });
+        const authToken = createToken({ id: user._id });
 
-        sendMail(user.response.email, 'New Login!', `There was a new login detected! If this was you forget about this email. If not, please contact our support team as soon as possible.`);
+        sendMail(user.email, 'New Login!', `There was a new login detected! If this was you forget about this email. If not, please contact our support team as soon as possible.`);
 
         return res.status(200).json({ message: "Successfully logged in!", data: { token: authToken } });
     } catch (error) { 
@@ -267,7 +266,7 @@ export const isUser = async (userId) => {
         }
 
         const user = await getDataById(userModel, userId);
-        if (!user.response) {
+        if (!user) {
             return false;
         }
 
@@ -284,11 +283,11 @@ export const isAdmin = async (userId) => {
         }
 
         const user = await getDataById(userModel, userId);
-        if (!user.response) {
+        if (!user) {
             return false;
         }
 
-        if (user.response.role === 'admin') {
+        if (user.role === 'admin') {
             return true;
         }
 

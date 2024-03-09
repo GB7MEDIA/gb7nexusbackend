@@ -39,11 +39,26 @@ export const getAllChatsController = async (req, res) => {
         }
 
         const chats = await getData(chatModel);
-        if (chats.response.length === 0) {
+        if (chats.length === 0) {
             return res.status(404).json({ error: "There are no chats!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved all chats!", data: { chats: chats.response } });
+        const chatsWithCreatedByUserName = await Promise.all(chats.map(async (chat) => {
+            const user = await getDataById(userModel, chat.createdBy);
+            return {
+                id: chat._id,
+                chatname: chat.chatname,
+                chatrights: chat.chatrights,
+                createdBy: {
+                    id: user._id,
+                    name: user.name
+                },
+                createdAt: chat.createdAt,
+                updatedAt: chat.updatedAt
+            };
+        }));
+
+        return res.status(200).json({ message: "Successfully retrieved all chats!", data: { chats: chatsWithCreatedByUserName } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -60,18 +75,31 @@ export const getAllChatsByUserIdController = async (req, res) => {
         const { userId } = req.params;
 
         const chatIdsResult = await getData(chatUserModel, { ['userId']: userId });
-        if (chatIdsResult.response.length === 0) {
+        if (chatIdsResult.length === 0) {
             return res.status(404).json({ error: "There were no chat ids found for this user!" });
         }
 
-        const chatsData = await Promise.all(chatIdsResult.response.map(async (chatUser) => {
+        const chatsData = await Promise.all(chatIdsResult.map(async (chatUser) => {
             const chatData = await getDataById(chatModel, chatUser.chatId);
-            return chatData.response;
+            return chatData;
         }));
 
-        const validChats = chatsData.filter(chat => chat != null);
+        const chatsWithCreatedByUserName = await Promise.all(chatsData.map(async (chat) => {
+            const user = await getDataById(userModel, chat.createdBy);
+            return {
+                id: chat._id,
+                chatname: chat.chatname,
+                chatrights: chat.chatrights,
+                createdBy: {
+                    id: user._id,
+                    name: user.name
+                },
+                createdAt: chat.createdAt,
+                updatedAt: chat.updatedAt
+            };
+        }));
 
-        return res.json({ message: "Successfully retrieved all chats!", data: { chats: validChats } });
+        return res.json({ message: "Successfully retrieved all chats!", data: { chats: chatsWithCreatedByUserName } });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ error: "There was a server error please try again later!" });
@@ -91,11 +119,25 @@ export const getChatByIdController = async (req, res) => {
         const { chatId } = req.params;
 
         const chat = await getDataById(chatModel, chatId);
-        if (!chat.response) {
+        if (!chat) {
             return res.status(404).json({ error: "A chat with this id does not exist!" });
         }
 
-        return res.status(200).json({ message: "Successfully retrieved chat!", data: { chat: chat.response } });
+        const user = await getDataById(userModel, chat.createdBy);
+
+        const chatWithCreatedByUserName = {
+            id: chat._id,
+            chatname: chat.chatname,
+            chatrights: chat.chatrights,
+            createdBy: {
+                id: user._id,
+                name: user.name
+            },
+            createdAt: chat.createdAt,
+            updatedAt: chat.updatedAt
+        };
+
+        return res.status(200).json({ message: "Successfully retrieved chat!", data: { chat: chatWithCreatedByUserName } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -113,16 +155,21 @@ export const getChatMessagesByChatIdController = async (req, res) => {
         const { chatId } = req.params;
 
         const chat = await getDataById(chatModel, chatId);
-        if (!chat.response) {
+        if (!chat) {
             return res.status(404).json({ error: "A chat with this id does not exist!" });
         }
 
         const messages = await getData(chatMessageModel, { ['chatId']: chatId });
-        if (messages.response.length === 0) {
+        if (messages.length === 0) {
             return res.status(404).json({ error: "There are no messages for this chat id!" });
         }
 
-        return  res.status(200).json({ message: "Successfully retrieved all messages!", data: { messages: messages.response } });
+        const messagesWithUserNames = await Promise.all(messages.map(async (message) => {
+            const user = await getDataById(userModel, message.userId);
+            return { id: message._id, chatId: message.chatId, user: { id: user._id, name: user.name }, text: message.text, createdAt: message.createdAt, updatedAt: message.updatedAt };
+        }));
+
+        return  res.status(200).json({ message: "Successfully retrieved all messages!", data: { messages: messagesWithUserNames } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -140,11 +187,11 @@ export const getChatMessageByMessageIdController = async (req, res) => {
         const { messageId } = req.params;
 
         const message = await getDataById(chatMessageModel, messageId);
-        if (!message.response) {
+        if (!message) {
             return res.status(404).json({ error: "A channel with this id does not exist!" });
         }
 
-        return  res.status(200).json({ message: "Successfully retrieved message!", data: { message: message.response } });
+        return  res.status(200).json({ message: "Successfully retrieved message!", data: { message: message } });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -162,19 +209,19 @@ export const getChatUsersByChatIdController = async (req, res) => {
         const { chatId } = req.params;
 
         const chat = await getDataById(chatModel, chatId);
-        if (!chat.response) {
+        if (!chat) {
             return res.status(404).json({ error: "A chat with this id does not exist!" });
         }
 
         const userIds = await getData( chatUserModel, { ['chatId']: chatId } );
-        if (userIds.response.length === 0) {
+        if (userIds.length === 0) {
             return res.status(404).json({ error: "There are no users for this chat id!" });
         }
 
         const users = await Promise.all(
-            userIds.response.map(async (user) => {
+            userIds.map(async (user) => {
                 const userData = await getDataById(userModel, user.userId);
-                return { _id: userData.response._id, name: userData.response.name, isAdmin: user.isAdmin };
+                return { _id: userData._id, name: userData.name, isAdmin: user.isAdmin };
             })
         );
 
@@ -193,15 +240,10 @@ export const createChatController = async (req, res) => {
             return res.status(404).json({ error: "The user id you are logged in with does not exist!" });
         }
 
-        const admin = await isAdmin(currentUserId);
-        if (!admin) {
-            return res.status(403).json({ error: "You are unauthorized for this action!" });
-        }
-
         const { chatname, chatusers, chatrights } = req.body;
 
         const chat = await getDataByValue(chatModel, { ['chatname']: chatname });
-        if (chat.response) {
+        if (chat) {
             return res.status(404).json({ error: "A chat with this name already exists!" });
         }
 
@@ -219,7 +261,7 @@ export const createChatController = async (req, res) => {
 
                 if (existingUser) {
                     let newChatUser = {
-                        chatId: createdChat.response._id,
+                        chatId: createdChat._id,
                         userId: user[0],
                         isAdmin: user[1]
                     };
@@ -245,15 +287,10 @@ export const createChatMessageByChatIdController = async (req, res) => {
             return res.status(404).json({ error: "The user id you are logged in with does not exist!" });
         }
 
-        const admin = await isAdmin(currentUserId);
-        if (!admin) {
-            return res.status(403).json({ error: "You are unauthorized for this action!" });
-        }
-
         const { chatId } = req.params;
 
         const chat = await getDataById(chatModel, chatId);
-        if (!chat.response) {
+        if (!chat) {
             return res.status(404).json({ error: "A chat with this id does not exist!" });
         }
 
@@ -282,29 +319,24 @@ export const editChatByIdController = async (req, res) => {
             return res.status(404).json({ error: "The user id you are logged in with does not exist!" });
         }
 
-        const admin = await isAdmin(currentUserId);
-        if (!admin) {
-            return res.status(403).json({ error: "You are unauthorized for this action!" });
-        }
+        const { chatId } = req.params;
 
-        const chatAdmin = await isChatAdmin(currentUserId);
+        const chatAdmin = await isChatAdmin(currentUserId, chatId);
         if (!chatAdmin) {
             return res.status(403).json({ error: "You are unauthorized for this action!" });
         }
 
-        const { chatId } = req.params;
-
         const chat = await getDataById(chatModel, chatId);
-        if (!chat.response) {
+        if (!chat) {
             return res.status(404).json({ error: "A chat with this id does not exist!" });
         }
 
         const { chatname, chatusers, chatrights } = req.body;
 
-        const editedChat = await editDataById(chatId, { chatname, chatrights });
+        const editedChat = await editDataById(chatModel, chatId, { chatname, chatrights });
         if (editedChat) {
             const existingUsers = await getData(chatUserModel, { ['chatId']: chatId });
-            const existingUserIds = existingUsers.response.map(user => user.userId);
+            const existingUserIds = existingUsers.map(user => user.userId);
 
             const chatUserIds = chatusers.map(chatUser => chatUser[0]);
         
@@ -318,10 +350,10 @@ export const editChatByIdController = async (req, res) => {
             const addPromises = usersToAdd.map(async user => {
                 const existingUser = await getDataById(userModel, user[0]);
               
-                if (existingUser.response) {
+                if (existingUser) {
                   const existingInChat = await getDataByValue(chatUserModel, { ['userId']: user[0], ['chatId']: chatId });
               
-                  if (!existingInChat.response[0]) {
+                  if (!existingInChat) {
                     let newChatUser = {
                       chatId,
                       userId: user[0],
@@ -354,11 +386,6 @@ export const editChatMessageByIdController = async (req, res) => {
             return res.status(404).json({ error: "The user id you are logged in with does not exist!" });
         }
 
-        const admin = await isAdmin(currentUserId);
-        if (!admin) {
-            return res.status(403).json({ error: "You are unauthorized for this action!" });
-        }
-
         const { messageId } = req.params;
 
         const message = await getDataById(chatMessageModel, messageId);
@@ -368,13 +395,14 @@ export const editChatMessageByIdController = async (req, res) => {
         
         const { text } = req.body;
 
-        const editedMessage = await editDataById(messageId, { text });
+        const editedMessage = await editDataById(chatMessageModel, messageId, { text });
         if (!editedMessage) {
             return;
         }
 
         return res.status(200).json({ message: "Successfully edited message!" });
-    } catch (error) { 
+    } catch (error) {
+        console.error(error);
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
 }
@@ -388,39 +416,39 @@ export const deleteChatByIdController = async (req, res) => {
             return res.status(404).json({ error: "The user id you are logged in with does not exist!" });
         }
 
-        const admin = await isAdmin(currentUserId);
-        const chatAdmin = await isChatAdmin(currentUserId);
-
         const { chatId } = req.params;
 
+        const admin = await isAdmin(currentUserId);
+        const chatAdmin = await isChatAdmin(currentUserId, chatId);
+
         const chat = await getDataById(chatModel, chatId);
-        if (!chat.response) {
+        if (!chat) {
             return res.status(404).json({ error: "A chat with this id does not exist!" });
         }
 
         if (!admin || !chatAdmin) {
             const chatUser = await getDataByValue(chatUserModel, { ['chatId']: chatId, ['userId']: currentUserId });
-            if(!chatUser.response) {
+            if(!chatUser) {
                 return res.status(404).json({ error: "You are no user in this chat!" });
             }
 
-            const userChatMessages = await getDataByValue(chatMessageModel, { ['chatId']: chatId, ['userId']: currentUserId });
-            await Promise.all(userChatMessages.response.map(async (message) => {
+            const userChatMessages = await getData(chatMessageModel, { ['chatId']: chatId, ['userId']: currentUserId });
+            await Promise.all(userChatMessages.map(async (message) => {
                 await deleteDataById(chatMessageModel, message._id);
             }));
 
-            await deleteDataById(chatUserModel, chatUser.response._id);
+            await deleteDataById(chatUserModel, chatUser._id);
 
             return res.status(200).json({ message: "Successfully left chat and deleted all relevant chat data!" });
         }
 
-        const chatUsers = await getDataByValue(chatUserModel, { ['chatId']: chatId });
-        await Promise.all(chatUsers.response.map(async (user) => {
+        const chatUsers = await getData(chatUserModel, { ['chatId']: chatId });
+        await Promise.all(chatUsers.map(async (user) => {
             await deleteDataById(chatUserModel, user._id);
         }));
 
-        const chatMessages = await getDataByValue(chatMessageModel, { ['chatId']: chatId });
-        await Promise.all(chatMessages.response.map(async (message) => {
+        const chatMessages = await getData(chatMessageModel, { ['chatId']: chatId });
+        await Promise.all(chatMessages.map(async (message) => {
             await deleteDataById(chatMessageModel, message._id);
         }));
 
@@ -443,11 +471,6 @@ export const deleteChatMessageByIdController = async (req, res) => {
             return res.status(404).json({ error: "The user id you are logged in with does not exist!" });
         }
 
-        const admin = await isAdmin(currentUserId);
-        if (!admin) {
-            return res.status(403).json({ error: "You are unauthorized for this action!" });
-        }
-
         const { messageId } = req.params;
 
         await deleteDataById(chatMessageModel, messageId);
@@ -458,7 +481,7 @@ export const deleteChatMessageByIdController = async (req, res) => {
     }
 }
 
-const isChatAdmin = async (userId) => {
+const isChatAdmin = async (userId, chatId) => {
     try {
         if (! notEmpty(userId)) {
             return false;
@@ -469,12 +492,12 @@ const isChatAdmin = async (userId) => {
             return false;
         }
 
-        const chatUser = await getDataByValue(chatUserModel, { ['userId']: userId });
-        if (!chatUser.response) {
+        const chatUser = await getDataByValue(chatUserModel, { ['userId']: userId, ['chatId']: chatId });
+        if (!chatUser) {
             return false;
         }
 
-        if (chatUser.response.isAdmin === true) {
+        if (chatUser.isAdmin === true) {
             return true;
         }
 
