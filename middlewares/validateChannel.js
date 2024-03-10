@@ -90,6 +90,7 @@ export const validateCreateChannel = (req, res, next) => {
     }
 
     const { channelname, channelusers, channelrights } = req.body;
+    console.log(channelusers);
     if (! notEmpty(channelname)) {
         return res.status(400).json({ error: "The channel name can not be left empty!" });
     }

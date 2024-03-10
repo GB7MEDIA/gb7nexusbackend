@@ -139,7 +139,7 @@ export const createObjectAdressesByObjectIdController = async (req, res) => {
 
         const createdAdress = await createData(objectAdressModel, newAdress);
 
-        return res.status(200).json({ message: "Successfully created adress!", data: { createdAdress } });
+        return res.status(200).json({ message: "Successfully created adress!" });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -176,7 +176,7 @@ export const editObjectByIdController = async (req, res) => {
             return;
         }
 
-        return res.status(200).json({ message: "Successffully edited object!", data: { objectId } });
+        return res.status(200).json({ message: "Successffully edited object!" });
     } catch (error) { 
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
@@ -200,13 +200,13 @@ export const editObjectAdressByIdController = async (req, res) => {
             return res.status(404).json({ error: "The adress does not exist!" });
         }
 
-        const editedObjectAdress = await editDataById(adressId, { adress, floors });
+        const editedObjectAdress = await editDataById(objectAdressModel, adressId, { adress, floors });
         if (!editedObjectAdress) {
             return;
         }
 
-        return res.status(200).json({ message: "Successfully edited adress!", data: { adressData } });
-    } catch (error) { 
+        return res.status(200).json({ message: "Successfully edited adress!" });
+    } catch (error) {
         return res.status(500).json({ error: "There was a server error please try again later!" });
     }
 }

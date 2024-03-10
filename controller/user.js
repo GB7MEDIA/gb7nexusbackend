@@ -187,7 +187,7 @@ export const editUserByIdController = async (req, res) => {
             }
         }
 
-        const editedUser = await editDataById(userModel, userId, { name, email, phonenumber, role: roleChange, tfaSetting: twoFactorAuthType });
+        const editedUser = await editDataById(userModel, userId, { name, email, phonenumber, role: roleChange ?? "user", tfaSetting: twoFactorAuthType });
         if (!editedUser) {
             return;
         }
