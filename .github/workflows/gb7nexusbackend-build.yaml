@@ -1,0 +1,66 @@
+# To better understand this file read this:
+# https://docs.ionos.space/docs/github-actions-customization/
+
+name: "Deploy Now: Execute Build"
+
+on:
+  workflow_call:
+    inputs:
+      site-url:
+        required: true
+        type: string
+      branch-id:
+        required: true
+        type: string
+
+env:
+  DEPLOYMENT_FOLDER: ./
+
+jobs:
+# Please do not rename this job
+  build-project:
+    name: build gb7nexusbackend
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: v18.16.0
+
+      - name: Build Node assets
+        env:
+          CI: true
+          EMAIL_HOST: smtp.ionos.de
+          EMAIL_PASS: EtienneNgB7N$2024!
+          EMAIL_PORT: 465
+          EMAIL_SECURE: true
+          EMAIL_USER: noreply@gb7nexus.com
+          FRONTEND_BASE_URL: http://localhost:3000/
+          MONGO_HOST: cea.tetk7pb.mongodb.net
+          MONGO_PASS: xe122m8QdHuyi3l1
+          MONGO_USER: mongodbcea
+          NAMESPACE: 1b671a64-40d5-491e-99b0-da01ff1f3341
+          SITE_URL: ${{ inputs.site-url }}
+          TOKEN_SECRET: 699A25A674F2B63962484D37E88A1
+          TWILIO_ACCOUNT_SID: AC4e2e8156f0bc50142aa69ea7ab02e68c
+          TWILIO_AUTH_TOKEN: 80cd7da85607b7d85eab0f1e27bedf5e
+          TWILIO_PHONENUMBER: +14159684262
+        run: npm ci
+
+# Please do not touch the following action
+      - name: Store deployment content
+        uses: ionos-deploy-now/artifact-action@v1
+        with:
+          api-key: ${{ secrets.IONOS_API_KEY }}
+          service-host: api-eu.ionos.space
+          project-id: 51f748b3-1981-47d6-a24b-52e3c1037356
+          branch-id: ${{ inputs.branch-id }}
+          version: ${{ github.sha }}
+          folder: ${{ env.DEPLOYMENT_FOLDER }}
+          config-file: .deploy-now/gb7nexusbackend/config.yaml
+          action: upload
