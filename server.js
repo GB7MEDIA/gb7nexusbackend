@@ -46,7 +46,7 @@ app.post('/api/upload/multiple', upload.array('files', 5), (req, res) => {
     }
 });
 
-app.use('/api', AllRoutes);
+app.use('/', AllRoutes);
 app.use('/uploads', express.static('uploads'));
 
 const PORT = process.env.PORT || 4000;
